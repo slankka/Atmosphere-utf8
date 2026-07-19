@@ -16,8 +16,8 @@
 
 /* SHA-256 hash prefixes (first 8 bytes) — matches fusee_stratosphere.cpp */
 const u8 g_fs_hashes[FsVer_Count][8] = {
-    /* FsVer_19_0_0_Exfat */
-    { 0xED, 0xA8, 0x78, 0x68, 0xA4, 0x49, 0x07, 0x50 },
+    /* FsVer_19_0_0_Exfat — 19.0.1 verified */
+    { 0x5C, 0x8C, 0xD1, 0xF2, 0xA9, 0x88, 0x5F, 0xE0 },
     /* FsVer_20_2_0_Exfat — NOTE: 20.2.0 is between 20.1.0 and 21.0.0,
        using 20.0.0 ExFAT hash as closest match */
     { 0x47, 0x41, 0x07, 0x10, 0x65, 0x4F, 0xA4, 0x3F },
