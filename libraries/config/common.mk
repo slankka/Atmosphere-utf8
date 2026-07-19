@@ -39,12 +39,12 @@ export ATMOSPHERE_CFLAGS   := -Wall -ffunction-sections -fdata-sections -fno-str
                               -Wno-format-zero-length
 
 ifeq ($(strip $(ATMOSPHERE_COMPILER_NAME)),gcc)
-export ATMOSPHERE_CFLAGS += -Wno-stringop-truncation -Wno-format-truncation
+export ATMOSPHERE_CFLAGS += -Wno-stringop-truncation -Wno-format-truncation -Wno-unused-but-set-variable -Wno-array-bounds -Wno-maybe-uninitialized
 else ifeq ($(strip $(ATMOSPHERE_COMPILER_NAME)),clang)
 export ATMOSPHERE_CFLAGS += -Wno-c99-designator -Wno-gnu-alignof-expression -Wno-unused-private-field
 endif
 
-export ATMOSPHERE_CXXFLAGS := -fno-rtti -fno-exceptions -std=gnu++23 -Wno-invalid-offsetof
+export ATMOSPHERE_CXXFLAGS := -fno-rtti -fno-exceptions -std=gnu++23 -Wno-invalid-offsetof -Wno-unused-variable
 export ATMOSPHERE_ASFLAGS  :=
 
 
