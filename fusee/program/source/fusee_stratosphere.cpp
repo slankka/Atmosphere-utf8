@@ -194,7 +194,7 @@ namespace ams::nxboot {
 
             FsVersion_22_0_0,
             FsVersion_22_0_0_Exfat,
-            
+
             FsVersion_22_5_0,
             FsVersion_22_5_0_Exfat,
 
@@ -305,7 +305,7 @@ namespace ams::nxboot {
 
             { 0xB7, 0xA2, 0x97, 0x39, 0xB7, 0xED, 0xDE, 0xFC }, /* FsVersion_22_0_0 */
             { 0xFB, 0x0B, 0x68, 0xDB, 0x24, 0x03, 0xD1, 0x19 }, /* FsVersion_22_0_0_Exfat */
-            
+
             { 0x53, 0x6D, 0x93, 0x84, 0x69, 0xFE, 0x73, 0xBE }, /* FsVersion_22_5_0 */
             { 0xD4, 0x45, 0x28, 0x29, 0x5B, 0x41, 0x92, 0xBA }, /* FsVersion_22_5_0_Exfat */
         };
@@ -370,6 +370,7 @@ namespace ams::nxboot {
         }
 
         constinit InitialProcessMeta g_initial_process_meta = {};
+        constinit const InitialProcessHeader *g_fs_overlay_kip = nullptr;  /* SD-loaded FS overlay KIP */
         constinit size_t g_initial_process_binary_size = 0;
 
         void AddInitialProcessImpl(InitialProcessMeta *meta, const InitialProcessHeader *kip, const se::Sha256Hash *hash) {
@@ -855,9 +856,15 @@ namespace ams::nxboot {
                     /* Read the kip. */
                     s64 file_size;
                     if (InitialProcessHeader *kip = static_cast<InitialProcessHeader *>(ReadFile(std::addressof(file_size), kip_path, alignof(InitialProcessHeader))); kip != nullptr) {
-                        /* If the kip is valid, add it. */
+                        /* If the kip is valid, check if it's an FS overlay KIP.
+                         * FS overlay KIPs (title_id == 0x0100000000000000) are
+                         * injected into FS rather than loaded as separate processes. */
                         if (kip->magic == InitialProcessHeader::Magic && file_size == GetInitialProcessSize(kip)) {
-                            AddInitialProcess(kip);
+                            if (kip->program_id == FsProgramId) {
+                                g_fs_overlay_kip = kip;
+                            } else {
+                                AddInitialProcess(kip);
+                            }
                         }
                     }
                 }
@@ -963,12 +970,12 @@ namespace ams::nxboot {
         }
 
         /* Read emummc, if needed. */
-        const InitialProcessHeader *emummc;
-        s64 emummc_size;
+        const InitialProcessHeader *emummc = reinterpret_cast<const InitialProcessHeader *>(external_package.kips + external_package.header.emummc_meta.offset);
+        s64 emummc_size = external_package.header.emummc_meta.size;
         if (emummc_enabled) {
-            emummc = static_cast<const InitialProcessHeader *>(ReadFile(std::addressof(emummc_size), "sdmc:/atmosphere/emummc.kip"));
-            if (emummc == nullptr) {
-                emummc      = reinterpret_cast<const InitialProcessHeader *>(external_package.kips + external_package.header.emummc_meta.offset);
+            if (const auto *sd_emummc = static_cast<const InitialProcessHeader *>(ReadFile(std::addressof(emummc_size), "sdmc:/atmosphere/emummc.kip")); sd_emummc != nullptr) {
+                emummc = sd_emummc;
+            } else {
                 emummc_size = external_package.header.emummc_meta.size;
             }
         }
@@ -1012,14 +1019,48 @@ namespace ams::nxboot {
             const u8 *src_kip_data = reinterpret_cast<const u8 *>(src_kip + 1);
                   u8 *dst_kip_data = reinterpret_cast<      u8 *>(dst_kip + 1);
 
-            /* If necessary, inject emummc. */
+            /* If necessary, inject FS overlay KIP (from SD card: sdmc:/atmosphere/kips/).
+             * Any KIP with title_id == 0x0100000000000000 is treated as an FS overlay
+             * and injected before FS (stacked before emummc if both are enabled).
+             * This allows third-party KIPs like fs_codecvt without modifying Atmosphere. */
             u32 addl_text_offset = 0;
+            const auto *fs_overlay = g_fs_overlay_kip;
+            if (dst_kip->program_id == FsProgramId && fs_overlay != nullptr) {
+                const u32 codecvt_addl = fs_overlay->bss_address + fs_overlay->bss_size;
+                if ((fs_overlay->flags & 7) || !util::IsAligned(codecvt_addl, 0x1000)) {
+                    ShowFatalError("Invalid FS overlay kip!\n");
+                }
+
+                addl_text_offset += codecvt_addl;
+
+                /* The overlay uses the same privileged process-memory SVCs as
+                 * emuMMC. Use Atmosphere's versioned, FS-compatible KAC set
+                 * even when emuMMC itself is disabled. */
+                std::memcpy(dst_kip->capabilities, emummc->capabilities, sizeof(emummc->capabilities));
+
+                dst_kip->ro_address  += codecvt_addl;
+                dst_kip->rw_address  += codecvt_addl;
+                dst_kip->bss_address += codecvt_addl;
+
+                const u8 *overlay_data = reinterpret_cast<const u8 *>(fs_overlay + 1);
+
+                std::memcpy(dst_kip_data + fs_overlay->rx_address, overlay_data, fs_overlay->rx_compressed_size);
+                std::memcpy(dst_kip_data + fs_overlay->ro_address, overlay_data + fs_overlay->rx_compressed_size, fs_overlay->ro_compressed_size);
+                std::memcpy(dst_kip_data + fs_overlay->rw_address, overlay_data + fs_overlay->rx_compressed_size + fs_overlay->ro_compressed_size, fs_overlay->rw_compressed_size);
+                std::memset(dst_kip_data + fs_overlay->bss_address, 0, fs_overlay->bss_size);
+
+                dst_kip_data += codecvt_addl;
+            }
+
+            /* If necessary, inject emummc. */
             if (dst_kip->program_id == FsProgramId && emummc_enabled) {
                 /* Get emummc extents. */
-                addl_text_offset = emummc->bss_address + emummc->bss_size;
-                if ((emummc->flags & 7) || !util::IsAligned(addl_text_offset, 0x1000)) {
+                const u32 emummc_addl = emummc->bss_address + emummc->bss_size;
+                if ((emummc->flags & 7) || !util::IsAligned(emummc_addl, 0x1000)) {
                     ShowFatalError("Invalid emummc kip!\n");
                 }
+
+                addl_text_offset += emummc_addl;
 
                 /* Copy emummc capabilities. */
                 {
@@ -1035,10 +1076,10 @@ namespace ams::nxboot {
                     }
                 }
 
-                /* Update section headers. */
-                dst_kip->ro_address  += addl_text_offset;
-                dst_kip->rw_address  += addl_text_offset;
-                dst_kip->bss_address += addl_text_offset;
+                /* Update section headers (shift FS by emummc size). */
+                dst_kip->ro_address  += emummc_addl;
+                dst_kip->rw_address  += emummc_addl;
+                dst_kip->bss_address += emummc_addl;
 
                 /* Get emummc sections. */
                 const u8 *emummc_data = reinterpret_cast<const u8 *>(emummc + 1);
@@ -1050,7 +1091,7 @@ namespace ams::nxboot {
                 std::memset(dst_kip_data + emummc->bss_address, 0, emummc->bss_size);
 
                 /* Advance. */
-                dst_kip_data += addl_text_offset;
+                dst_kip_data += emummc_addl;
             }
 
             /* Prepare to process segments. */
