@@ -413,7 +413,11 @@ void __init()
     u32 pageinfo;
     svcQueryMemory(&meminfo, &pageinfo, (u64)&_start);
 
-    text_base = meminfo.addr;
+    /* Use this injected module's relocated start, not the beginning of the
+     * process RX mapping. A preceding FS overlay (for example fs_codecvt)
+     * shares the same mapping, so meminfo.addr is not necessarily emuMMC's
+     * own base. __argdata__ remains the start of the original FS payload. */
+    text_base = (uintptr_t)&_start;
 
     // Get code size
     svcQueryMemory(&meminfo, &pageinfo, FS_CODE_BASE);

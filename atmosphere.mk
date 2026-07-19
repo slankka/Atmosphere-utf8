@@ -116,12 +116,15 @@ dist-no-debug: package3 $(CURRENT_DIRECTORY)/$(ATMOSPHERE_OUT_DIR)
 	rm -rf $(DIST_DIR)
 	cp fusee/$(ATMOSPHERE_BOOT_OUT_DIR)/fusee.bin $(CURRENT_DIRECTORY)/$(ATMOSPHERE_OUT_DIR)/fusee.bin
 
-package3: emummc fusee stratosphere mesosphere exosphere troposphere
+package3: emummc fs_codecvt fusee stratosphere mesosphere exosphere troposphere
 	$(SILENTCMD)$(PYTHON) fusee/build_package3.py $(CURRENT_DIRECTORY) $(ATMOSPHERE_OUT_DIR) $(ATMOSPHERE_BOOT_OUT_DIR) $(ATMOSPHERE_GIT_HASH) $(ATMOSPHERE_MAJOR_VERSION) $(ATMOSPHERE_MINOR_VERSION) $(ATMOSPHERE_MICRO_VERSION) 0 $(ATMOSPHERE_SUPPORTED_HOS_MAJOR_VERSION) $(ATMOSPHERE_SUPPORTED_HOS_MINOR_VERSION) $(ATMOSPHERE_SUPPORTED_HOS_MICRO_VERSION) 0
 	@echo "Built package3!"
 
 emummc:
 	$(MAKE) -C $(CURRENT_DIRECTORY)/emummc all
+
+fs_codecvt:
+	$(MAKE) -C $(CURRENT_DIRECTORY)/stratosphere/fs_codecvt all
 
 fusee: libexosphere_boot
 	@$(MAKE) --no-print-directory -C $(CURRENT_DIRECTORY)/fusee -f $(CURRENT_DIRECTORY)/fusee/fusee.mk ATMOSPHERE_CPU="$(strip $(ATMOSPHERE_BOOT_CPU))"
@@ -156,6 +159,7 @@ libstratosphere:
 
 clean:
 	$(MAKE) -C $(CURRENT_DIRECTORY)/fusee -f $(CURRENT_DIRECTORY)/fusee/fusee.mk clean ATMOSPHERE_CPU="$(strip $(ATMOSPHERE_BOOT_CPU))"
+	$(MAKE) -C $(CURRENT_DIRECTORY)/stratosphere/fs_codecvt clean
 	$(MAKE) -C $(CURRENT_DIRECTORY)/emummc clean
 	$(MAKE) -C $(CURRENT_DIRECTORY)/exosphere -f $(CURRENT_DIRECTORY)/exosphere/exosphere.mk clean
 	$(MAKE) -C $(CURRENT_DIRECTORY)/mesosphere -f $(CURRENT_DIRECTORY)/mesosphere/mesosphere.mk clean
@@ -170,4 +174,4 @@ clean:
 $(CURRENT_DIRECTORY)/$(ATMOSPHERE_OUT_DIR) $(CURRENT_DIRECTORY)/$(ATMOSPHERE_BUILD_DIR):
 	@[ -d $@ ] || mkdir -p $@
 
-.PHONY: dist dist-no-debug clean package3 emummc fusee stratosphere mesosphere exosphere troposphere
+.PHONY: dist dist-no-debug clean package3 fs_codecvt emummc fusee stratosphere mesosphere exosphere troposphere

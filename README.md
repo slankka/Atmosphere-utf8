@@ -8,6 +8,11 @@
 
 Atmosphère is a work-in-progress customized firmware for the Nintendo Switch.
 
+**UTF-8 KIP fs_codecvt**
+=====
+
+This repo provides a KIP overlay that enables UTF-8 filenames on the Nintendo Switch by replacing the FS sysmodule's built-in codecvt.
+
 Components
 =====
 
