@@ -493,12 +493,11 @@ namespace haze {
         /* Remove the object from the filesystem. */
         if (entry_type == FsDirEntryType_Dir) {
             R_TRY(m_fs.DeleteDirectoryRecursively(obj->GetName()));
+            m_object_database.DeleteObjectRecursively(obj);
         } else {
             R_TRY(m_fs.DeleteFile(obj->GetName()));
+            m_object_database.DeleteObject(obj);
         }
-
-        /* Remove the object from the database. */
-        m_object_database.DeleteObject(obj);
 
         /* Write the success response. */
         R_RETURN(this->WriteResponse(PtpResponseCode_Ok));

@@ -97,6 +97,7 @@ namespace haze {
             void RegisterObject(PtpObject *object, u32 desired_id = 0);
             void UnregisterObject(PtpObject *object);
             void DeleteObject(PtpObject *obj);
+            void DeleteObjectRecursively(PtpObject *obj);
 
             Result CreateAndRegisterObjectId(const char *parent_name, const char *name, u32 parent_id, u32 *out_object_id);
         public:

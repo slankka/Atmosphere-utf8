@@ -18,6 +18,7 @@
 #include <haze/async_usb_server.hpp>
 #include <haze/common.hpp>
 #include <haze/ptp.hpp>
+#include <switch/runtime/util/utf.h>
 
 namespace haze {
 
@@ -90,22 +91,31 @@ namespace haze {
                 R_SUCCEED();
             }
 
-            /* NOTE: out_string must contain room for 256 bytes. */
+            /* NOTE: out_string must contain room for PtpStringMaxUtf8Length + 1 bytes. */
             /* The result will be null-terminated on successful completion. */
             Result ReadString(char *out_string) {
                 u8 len;
                 R_TRY(this->Read(std::addressof(len)));
 
-                /* Read characters one by one. */
-                for (size_t i = 0; i < len; i++) {
-                    u16 chr;
-                    R_TRY(this->Read(std::addressof(chr)));
-
-                    *out_string++ = static_cast<char>(chr);
+                if (len == 0) {
+                    *out_string = '\x00';
+                    R_SUCCEED();
                 }
 
-                /* Write null terminator. */
-                *out_string++ = '\x00';
+                /* Read the UTF-16LE PTP string, including its terminator. */
+                u16 utf16[PtpStringMaxLength + 1];
+                for (size_t i = 0; i < len; ++i) {
+                    R_TRY(this->Read(std::addressof(utf16[i])));
+                }
+                utf16[len] = 0;
+
+                /* libnx does not null-terminate its output and may return the
+                 * untruncated length, so reserve and initialize the last byte. */
+                std::memset(out_string, 0, PtpStringMaxUtf8Length + 1);
+                const ssize_t required = utf16_to_utf8(reinterpret_cast<u8 *>(out_string), utf16, PtpStringMaxUtf8Length);
+                if (required < 0) {
+                    *out_string = '\x00';
+                }
 
                 R_SUCCEED();
             }

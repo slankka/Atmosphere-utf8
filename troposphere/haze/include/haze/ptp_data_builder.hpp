@@ -18,6 +18,7 @@
 #include <haze/async_usb_server.hpp>
 #include <haze/common.hpp>
 #include <haze/ptp.hpp>
+#include <switch/runtime/util/utf.h>
 
 namespace haze {
 
@@ -154,6 +155,41 @@ namespace haze {
                     R_TRY(this->Add<u16>(0));
                 } else {
                     R_TRY(this->Add<u8>(len));
+                }
+
+                R_SUCCEED();
+            }
+
+            Result AddString(const char *str) {
+                constexpr size_t MaxStringCodeUnits = PtpStringMaxLength - 1;
+
+                /* libnx does not null-terminate its output and returns the
+                 * untruncated length. Zero-initialize one extra code unit so
+                 * that the number actually written can be measured safely. */
+                u16 utf16[MaxStringCodeUnits + 1]{};
+                const ssize_t required = utf8_to_utf16(utf16, reinterpret_cast<const u8 *>(str), MaxStringCodeUnits);
+
+                if (required < 0) {
+                    R_TRY(this->Add<u8>(0));
+                    R_SUCCEED();
+                }
+
+                size_t len = 0;
+                while (len < MaxStringCodeUnits && utf16[len] != 0) {
+                    ++len;
+                }
+
+                if (len > 0) {
+                    /* PTP counts the trailing null in the string length. */
+                    R_TRY(this->Add<u8>(static_cast<u8>(len + 1)));
+
+                    for (size_t i = 0; i < len; ++i) {
+                        R_TRY(this->Add<u16>(utf16[i]));
+                    }
+
+                    R_TRY(this->Add<u16>(0));
+                } else {
+                    R_TRY(this->Add<u8>(0));
                 }
 
                 R_SUCCEED();

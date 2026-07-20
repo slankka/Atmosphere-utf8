@@ -118,6 +118,36 @@ namespace haze {
         m_object_heap->Deallocate(object, sizeof(PtpObject) + std::strlen(object->GetName()) + 1);
     }
 
+    void PtpObjectDatabase::DeleteObjectRecursively(PtpObject *object) {
+        const char * const parent_name = object->GetName();
+        const size_t parent_name_len = std::strlen(parent_name);
+
+        /* Remove the directory and every object below it. The filesystem
+         * operation is recursive, so retaining descendant handles would leave
+         * the host with handles for paths which no longer exist. */
+        for (auto it = m_name_tree.begin(); it != m_name_tree.end(); ) {
+            PtpObject * const current = std::addressof(*it);
+            const char * const current_name = current->GetName();
+            const bool is_descendant = strncasecmp(current_name, parent_name, parent_name_len) == 0 &&
+                                       (current_name[parent_name_len] == '\x00' || current_name[parent_name_len] == '/');
+
+            if (!is_descendant) {
+                ++it;
+                continue;
+            }
+
+            it = m_name_tree.erase(it);
+            m_object_id_tree.erase(m_object_id_tree.iterator_to(*current));
+            current->Unregister();
+            if (current != object) {
+                m_object_heap->Deallocate(current, sizeof(PtpObject) + std::strlen(current_name) + 1);
+            }
+        }
+
+        /* Keep the parent name alive while matching descendants above. */
+        m_object_heap->Deallocate(object, sizeof(PtpObject) + parent_name_len + 1);
+    }
+
     Result PtpObjectDatabase::CreateAndRegisterObjectId(const char *parent_name, const char *name, u32 parent_id, u32 *out_object_id) {
         /* Try to create the object. */
         PtpObject *object;

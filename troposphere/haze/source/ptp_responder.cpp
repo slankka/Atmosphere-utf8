@@ -97,6 +97,9 @@ namespace haze {
             R_CATCH(haze::ResultDepthSpecified) {
                 R_TRY(this->WriteResponse(PtpResponseCode_MtpSpecificationByDepthUnsupported));
             }
+            R_CATCH(fs::ResultTargetLocked) {
+                R_TRY(this->WriteResponse(PtpResponseCode_ObjectWriteProtected));
+            }
             R_CATCH(haze::ResultInvalidArgument) {
                 R_TRY(this->WriteResponse(PtpResponseCode_GeneralError));
             }
