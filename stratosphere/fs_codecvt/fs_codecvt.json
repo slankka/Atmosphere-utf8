@@ -1,6 +1,6 @@
 {
     "name": "FS",
-    "program_id": "0x0100000000000000",
+    "title_id": "0x0100000000000000",
     "main_thread_stack_size": "0x00008000",
     "main_thread_priority": 45,
     "default_cpu_id": 3,
