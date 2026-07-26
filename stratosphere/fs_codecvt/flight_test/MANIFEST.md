@@ -49,6 +49,7 @@
 | 45 | `B5238EDD` | 双契约组合：F44 高层完整 UTF-8 路径 + F25 已验证的 slot0/slot3；slot0 改用独立两字节安全解码器，高层入口继续使用完整三字节解码器 | ⚠️ 不黑屏；direct read/write 全部 PASS，但两个目录均 `total=0`、枚举 FAIL；确认双契约分流解决输入路径，剩余故障收敛到目录输出 |
 | 46 | `87A512C2` | F45 + 仅启用现有 `Directory::Read` UTF-8 输出 Hook；仍不启用三个输入 sanitize NOP | ✅ 三项全部 PASS：direct read/write、`/ROM` 枚举 CJK 目录、CJK 目录枚举文件均成功；FAT32 双契约方案验证完成 |
 | 47 | `B4DFC778` | 生产源码清理：删除 `split_path_ascii_prefix_probe` 等 F1–F45 诊断函数、条件编译开关和错误标签；最终 Hook 组合不变，额外指令仅作为只读 `identity_checks` | ✅ FAT32 实机三项全部 PASS；未压缩 KIP 9972 字节，生产清理版验证完成 |
+| 48 | `B20FFE7A` | 将 F47 FAT32 双契约推广到 20.2.0、21.2.0、22.0.0、22.5.0 ExFAT-capable FS；补齐高层转换、pattern、SFN 与版本专属 identity checks | 🧪 五版本提取实体唯一匹配及干净编译通过；19.0.1 行为待回归，20.2.0–22.5.0 FAT32 实机待测试 |
 
 ## 根因分析
 
@@ -256,6 +257,15 @@
   9972 字节。FAT32 实机回归中 direct read/write、`/ROM` 枚举 CJK 目录、CJK 目录
   枚举文件三项均 PASS，确认生产源码清理没有改变最终功能；#47 取代 #46 成为当前
   已验证的正式构建基准。
+- **#48 完成多固件静态推广**：在各版本已提取的 ExFAT-capable FS 实体上，以
+  #47 的语义入口为基准重新定位完整字符串双向转换、长名 pattern reader 与 FAT32
+  `parseShortName`。20.2.0 的高层布局仍接近 19.x；21.2.0 起
+  `transformFromUnicodeToNormal` 栈帧从 `0x50` 改为 `0x40`，必须使用新入口签名。
+  Directory::Read 的继续位置也按控制流分别处理：20.2.0/22.x 回到 bound compare，
+  21.2.0 直接回到 `ldrb`，避免再次执行 `add x8,#1`。离线交叉匹配结果为每个实体
+  只命中自己的表项；22.0.0 与 22.5.0 通过 `0xE70C0` 的不同原始 opcode 区分。
+  未压缩 KIP 为 SHA-256 `B20FFE7A354FB6AD536BD85C61FFAB7BAD8B11279CD9E5E1B2CDC88605D9DBA0`、
+  9972 字节。当前只完成静态和构建验证，不得提前标记为实机 PASS。
 
 ### `is_oem_mb_char` 调用约定复核
 
