@@ -57,11 +57,14 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
          * 19.0.1 ExFAT-capable FS image (FS_proper.nso SHA256 04CC7A78...). */
         0xF5840, 0xF5960, 0xD10143FF, 0xA9BC7BFD,
         0xF44E0, 0xD10103FF,
-        0xF4D68, 0x54000261,
-        0xF5EE0, { 0xF9400F48, 0xD63F0100 },
-        0x108510, 0x97FFB288,
-        0x1085A8, 0x2A0003F5,
-        0x1086BC, 0x52800055,
+        {
+            { 0xF4D68, 0x54000261 },
+            { 0xF5EE0, 0xF9400F48 },
+            { 0xF5EE4, 0xD63F0100 },
+            { 0x108510, 0x97FFB288 },
+            { 0x1085A8, 0x2A0003F5 },
+            { 0x1086BC, 0x52800055 },
+        },
         0xF5AC0, 0xA9BA7BFD,
     },
     /* FsVer_20_2_0_Exfat */
@@ -73,7 +76,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x1095B0 + UNI2OEM_CODE_SIZE,
         0x109780 - (0x1095B0 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, {}, 0, 0,
     },
     /* FsVer_21_2_0_Exfat — full codecvt + dir hook (capstone-verified).
      * Dir hook at 0xE48D0 (b.lo→0xE4864), byte in W10 (ldrb w10,[x28,x8]).
@@ -86,7 +89,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x10EE10 + UNI2OEM_CODE_SIZE,
         0x10EFE0 - (0x10EE10 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54FFFCA3,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, {}, 0, 0,
     },
     /* FsVer_22_0_0_Exfat */
     {
@@ -97,7 +100,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, {}, 0, 0,
     },
     /* FsVer_22_5_0_Exfat — identical to 22.0.0 */
     {
@@ -108,7 +111,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, {}, 0, 0,
     },
     /* FsVer_19_0_0_Fat32 — offsets from nx-filesystem-utf8 build_patches22.py.
      * Verified against 19.0.1 FAT32 FS_proper.nso (SHA256 0643F662...).
@@ -127,11 +130,14 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
         0xFA410, 0xFA530, 0xD10143FF, 0xA9BC7BFD,
         0xF9190, 0xD10103FF,
-        0xF9938, 0x54000261,
-        0xFA9F0, { 0xF9400F48, 0xD63F0100 },
-        0xF5D5C, 0x94000F69,
-        0xF5DF4, 0x2A0003F5,
-        0xF5EB0, 0x52800055,
+        {
+            { 0xF9938, 0x54000261 },
+            { 0xFA9F0, 0xF9400F48 },
+            { 0xFA9F4, 0xD63F0100 },
+            { 0xF5D5C, 0x94000F69 },
+            { 0xF5DF4, 0x2A0003F5 },
+            { 0xF5EB0, 0x52800055 },
+        },
         0xFA5D0, 0xA9BA7BFD,
     },
 };
