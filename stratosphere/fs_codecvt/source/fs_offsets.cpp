@@ -76,7 +76,17 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x1095B0 + UNI2OEM_CODE_SIZE,
         0x109780 - (0x1095B0 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
-        0, 0, 0, 0, 0, 0, {}, 0, 0,
+        0x1005D0, 0x1006F0, 0xD10143FF, 0xA9BC7BFD,
+        0xFF270, 0xD10103FF,
+        {
+            { 0x1005D4, 0xA9017BFD },
+            { 0x1005E4, 0x910043FD },
+            { 0x100704, 0x39400028 },
+            { 0xFF2A0, 0x7100053F },
+            { 0x10086C, 0xD108C3FF },
+            { 0x100890, 0x940363A0 },
+        },
+        0x100850, 0xA9BA7BFD,
     },
     /* FsVer_21_2_0_Exfat — full codecvt + dir hook (capstone-verified).
      * Dir hook at 0xE48D0 (b.lo→0xE4864), byte in W10 (ldrb w10,[x28,x8]).
@@ -89,7 +99,17 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x10EE10 + UNI2OEM_CODE_SIZE,
         0x10EFE0 - (0x10EE10 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54FFFCA3,
-        0, 0, 0, 0, 0, 0, {}, 0, 0,
+        0x105ED0, 0x105FE0, 0xD10103FF, 0xA9BC7BFD,
+        0x104BA0, 0xD10103FF,
+        {
+            { 0x105ED4, 0xA9017BFD },
+            { 0x105EE4, 0x528005C8 },
+            { 0x105FF4, 0x39400028 },
+            { 0x104BC4, 0x7100053F },
+            { 0x10615C, 0xD10903FF },
+            { 0x106180, 0x94035E70 },
+        },
+        0x106140, 0xA9BA7BFD,
     },
     /* FsVer_22_0_0_Exfat */
     {
@@ -100,7 +120,17 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
-        0, 0, 0, 0, 0, 0, {}, 0, 0,
+        0x108740, 0x108850, 0xD10103FF, 0xA9BC7BFD,
+        0x107410, 0xD10103FF,
+        {
+            { 0x108744, 0xA9017BFD },
+            { 0x108754, 0x528005C8 },
+            { 0x108864, 0x39400028 },
+            { 0x107434, 0x7100053F },
+            { 0x1089CC, 0xD10903FF },
+            { 0xE70C0, 0xD29FBEE1 },
+        },
+        0x1089B0, 0xA9BA7BFD,
     },
     /* FsVer_22_5_0_Exfat — identical to 22.0.0 */
     {
@@ -111,7 +141,17 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
-        0, 0, 0, 0, 0, 0, {}, 0, 0,
+        0x108740, 0x108850, 0xD10103FF, 0xA9BC7BFD,
+        0x107410, 0xD10103FF,
+        {
+            { 0x108744, 0xA9017BFD },
+            { 0x108754, 0x528005C8 },
+            { 0x108864, 0x39400028 },
+            { 0x107434, 0x7100053F },
+            { 0x1089CC, 0xD10903FF },
+            { 0xE70C0, 0xD28A9041 },
+        },
+        0x1089B0, 0xA9BA7BFD,
     },
     /* FsVer_19_0_0_Fat32 — offsets from nx-filesystem-utf8 build_patches22.py.
      * Verified against 19.0.1 FAT32 FS_proper.nso (SHA256 0643F662...).
