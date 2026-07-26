@@ -819,57 +819,77 @@ namespace ams::nxboot {
             }
         }
 
-    }
+        enum class SdKipType {
+            InitialProcess,
+            FsOverlay,
+        };
 
-    u32 ConfigureStratosphere(const u8 *nn_package2, ams::TargetFirmware target_firmware, bool emummc_enabled, bool nogc_enabled) {
-        /* Load KIPs off the SD card. */
-        {
-            /* Create kip dir path. */
+        bool HasKipExtension(const char *name, size_t name_len) {
+            return (name_len >= 4 && std::memcmp(name + name_len - 4, ".kip", 4) == 0) ||
+                   (name_len >= 5 && std::memcmp(name + name_len - 5, ".kip1", 5) == 0);
+        }
+
+        void LoadSdKips(const char *directory, SdKipType type) {
             char kip_path[0x120];
-            std::memcpy(kip_path, "sdmc:/atmosphere/kips", 0x16);
+            const size_t directory_len = std::strlen(directory);
+            if (directory_len >= sizeof(kip_path)) {
+                ShowFatalError("KIP directory path is too long!\n");
+            }
+            std::memcpy(kip_path, directory, directory_len + 1);
 
             fs::DirectoryHandle kip_dir;
-            if (R_SUCCEEDED(fs::OpenDirectory(std::addressof(kip_dir), kip_path))) {
-                ON_SCOPE_EXIT { fs::CloseDirectory(kip_dir); };
+            if (R_FAILED(fs::OpenDirectory(std::addressof(kip_dir), kip_path))) {
+                return;
+            }
+            ON_SCOPE_EXIT { fs::CloseDirectory(kip_dir); };
 
-                s64 count;
-                fs::DirectoryEntry entries[1];
-                while (R_SUCCEEDED(fs::ReadDirectory(std::addressof(count), entries, kip_dir, util::size(entries))) && count > 0) {
-                    /* Check that file is a file. */
-                    if (fs::GetEntryType(entries[0]) != fs::DirectoryEntryType_File) {
-                        continue;
+            s64 count;
+            fs::DirectoryEntry entries[1];
+            while (R_SUCCEEDED(fs::ReadDirectory(std::addressof(count), entries, kip_dir, util::size(entries))) && count > 0) {
+                if (fs::GetEntryType(entries[0]) != fs::DirectoryEntryType_File) {
+                    continue;
+                }
+
+                const size_t name_len = std::strlen(entries[0].file_name);
+                if (!HasKipExtension(entries[0].file_name, name_len)) {
+                    continue;
+                }
+                if (directory_len + 1 + name_len >= sizeof(kip_path)) {
+                    ShowFatalError("KIP path in %s is too long!\n", directory);
+                }
+
+                kip_path[directory_len] = '/';
+                std::memcpy(kip_path + directory_len + 1, entries[0].file_name, name_len + 1);
+
+                s64 file_size;
+                InitialProcessHeader *kip = static_cast<InitialProcessHeader *>(ReadFile(std::addressof(file_size), kip_path, alignof(InitialProcessHeader)));
+                if (kip == nullptr || kip->magic != InitialProcessHeader::Magic || file_size != GetInitialProcessSize(kip)) {
+                    continue;
+                }
+
+                if (type == SdKipType::FsOverlay) {
+                    if (kip->program_id != FsProgramId) {
+                        ShowFatalError("Non-FS KIP found in %s!\n", directory);
                     }
-
-                    /* Get filename length. */
-                    const int name_len = std::strlen(entries[0].file_name);
-
-                    /* Adjust kip path. */
-                    kip_path[0x15] = '/';
-                    std::memcpy(kip_path + 0x16, entries[0].file_name, name_len + 1);
-
-                    /* Check that file is ".kip" or ".kip1" file. */
-                    const int path_len = 0x16 + name_len;
-                    if (std::memcmp(kip_path + path_len - 4, ".kip", 5) != 0 && std::memcmp(kip_path + path_len - 5, ".kip1", 6) != 0) {
-                        continue;
+                    if (g_fs_overlay_kip != nullptr) {
+                        ShowFatalError("Multiple FS overlay KIPs found!\n");
                     }
-
-                    /* Read the kip. */
-                    s64 file_size;
-                    if (InitialProcessHeader *kip = static_cast<InitialProcessHeader *>(ReadFile(std::addressof(file_size), kip_path, alignof(InitialProcessHeader))); kip != nullptr) {
-                        /* If the kip is valid, check if it's an FS overlay KIP.
-                         * FS overlay KIPs (title_id == 0x0100000000000000) are
-                         * injected into FS rather than loaded as separate processes. */
-                        if (kip->magic == InitialProcessHeader::Magic && file_size == GetInitialProcessSize(kip)) {
-                            if (kip->program_id == FsProgramId) {
-                                g_fs_overlay_kip = kip;
-                            } else {
-                                AddInitialProcess(kip);
-                            }
-                        }
+                    g_fs_overlay_kip = kip;
+                } else {
+                    if (kip->program_id == FsProgramId) {
+                        ShowFatalError("FS overlay KIP must be placed in sdmc:/atmosphere/fs_overlays!\n");
                     }
+                    AddInitialProcess(kip);
                 }
             }
         }
+
+    }
+
+    u32 ConfigureStratosphere(const u8 *nn_package2, ams::TargetFirmware target_firmware, bool emummc_enabled, bool nogc_enabled) {
+        /* Keep traditional initial-process KIPs separate from FS process overlays. */
+        LoadSdKips("sdmc:/atmosphere/kips", SdKipType::InitialProcess);
+        LoadSdKips("sdmc:/atmosphere/fs_overlays", SdKipType::FsOverlay);
 
         /* Add the stratosphere kips. */
         {
@@ -1019,10 +1039,8 @@ namespace ams::nxboot {
             const u8 *src_kip_data = reinterpret_cast<const u8 *>(src_kip + 1);
                   u8 *dst_kip_data = reinterpret_cast<      u8 *>(dst_kip + 1);
 
-            /* If necessary, inject FS overlay KIP (from SD card: sdmc:/atmosphere/kips/).
-             * Any KIP with title_id == 0x0100000000000000 is treated as an FS overlay
-             * and injected before FS (stacked before emummc if both are enabled).
-             * This allows third-party KIPs like fs_codecvt without modifying Atmosphere. */
+            /* If necessary, inject the FS overlay KIP from
+             * sdmc:/atmosphere/fs_overlays before FS (and before emummc, if enabled). */
             u32 addl_text_offset = 0;
             const auto *fs_overlay = g_fs_overlay_kip;
             if (dst_kip->program_id == FsProgramId && fs_overlay != nullptr) {

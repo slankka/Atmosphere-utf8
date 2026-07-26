@@ -20,8 +20,8 @@ fs_codecvt 是一个 ARM64 KIP 格式的 FS Overlay 模块，在运行时对 Nin
 
 ```text
 Hekate payload=fusee.bin
-  → ConfigureStratosphere: 从 sdmc:/atmosphere/kips/ 加载 KIP
-    → 若 title_id == 0x0100000000000000 (FS) → 标记为 FS Overlay KIP
+  → ConfigureStratosphere: 从 sdmc:/atmosphere/fs_overlays/ 加载 FS Overlay
+    → 仅接受 title_id == 0x0100000000000000 (FS) 的 KIP
   → RebuildPackage2: 将 fs_codecvt 注入 FS 进程空间
     [fs_codecvt .text/.data/.bss] [emummc（可选）] [FS 原始 KIP]
 
@@ -39,9 +39,10 @@ Hekate 的 `pkg3=` 会解析 Atmosphère package3 并提取所需组件，但不
 内嵌的 Fusee，因此不能触发这里新增的 FS Overlay 加载逻辑。验证本模块时必须
 通过 `payload=` 启动实际包含该逻辑的 `fusee.bin`，或直接注入该 payload。
 
-Fusee 当前只保存一个 FS Overlay；`sdmc:/atmosphere/kips/` 中不要同时放置多个
-Program ID 为 `0100000000000000` 的自定义 KIP。`emummc=0` 只表示进入真实系统，
-不会禁用 fs_codecvt。
+`sdmc:/atmosphere/kips/` 保留给传统的独立进程 KIP；FS Overlay 必须放在
+`sdmc:/atmosphere/fs_overlays/`。Fusee 当前只接受一个 FS Overlay，发现多个文件
+或非 FS Program ID 的 KIP 会直接报错。`emummc=0` 只表示进入真实系统，不会禁用
+fs_codecvt。
 
 ### 实机验证状态
 
@@ -149,7 +150,7 @@ Cache maintenance 与 emuMMC 的实现保持一致，执行 DC/IC 操作时处�
 `fs_codecvt_unpacked.kip`。部署时必须使用后者：
 
 ```text
-sdmc:/atmosphere/kips/fs_codecvt_unpacked.kip
+sdmc:/atmosphere/fs_overlays/fs_codecvt_unpacked.kip
 ```
 
 Fusee 会拒绝低三位压缩 flags 非零或总尺寸未按 `0x1000` 对齐的 Overlay KIP。

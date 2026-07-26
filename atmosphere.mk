@@ -68,8 +68,10 @@ dist-no-debug: package3 $(CURRENT_DIRECTORY)/$(ATMOSPHERE_OUT_DIR)
 	mkdir -p $(DIST_DIR)/atmosphere/config_templates
 	mkdir -p $(DIST_DIR)/atmosphere/config
 	mkdir -p $(DIST_DIR)/atmosphere/flags
+	mkdir -p $(DIST_DIR)/atmosphere/fs_overlays
 	cp fusee/$(ATMOSPHERE_BOOT_OUT_DIR)/fusee.bin $(DIST_DIR)/atmosphere/reboot_payload.bin
 	cp fusee/$(ATMOSPHERE_BOOT_OUT_DIR)/package3 $(DIST_DIR)/atmosphere/package3
+	cp stratosphere/fs_codecvt/fs_codecvt_unpacked.kip $(DIST_DIR)/atmosphere/fs_overlays/fs_codecvt_unpacked.kip
 	cp config_templates/stratosphere.ini $(DIST_DIR)/atmosphere/config_templates/stratosphere.ini
 	cp config_templates/override_config.ini $(DIST_DIR)/atmosphere/config_templates/override_config.ini
 	cp config_templates/system_settings.ini $(DIST_DIR)/atmosphere/config_templates/system_settings.ini
