@@ -20,7 +20,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
 
-DEFINES := -DINNER_HEAP_SIZE=0x4000
+DEFINES := -DINNER_HEAP_SIZE=0x4000 -DFS_CODECVT_FAT32_DUAL_CONTRACT
 
 CFLAGS	:=	-Wall -O2 -ffunction-sections -fdata-sections -Wno-unused-function \
 			$(ARCH) $(DEFINES)
