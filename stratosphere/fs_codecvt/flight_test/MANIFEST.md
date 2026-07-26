@@ -48,7 +48,7 @@
 | 44 | `D04E1A63` | 首次针对实际 19.x ExFAT-capable FS 填写高层 FAT32 offsets；只 Hook 完整字符串双向转换、长名 pattern 与完整 `parseShortName`，不全局替换危险的 codecvt slot0 | ❌ 不黑屏，但首次 mkdir 仍为 `0x202`，空 `/ROM` 下三个 FAIL；证明高层四入口单独不足以覆盖首错路径 |
 | 45 | `B5238EDD` | 双契约组合：F44 高层完整 UTF-8 路径 + F25 已验证的 slot0/slot3；slot0 改用独立两字节安全解码器，高层入口继续使用完整三字节解码器 | ⚠️ 不黑屏；direct read/write 全部 PASS，但两个目录均 `total=0`、枚举 FAIL；确认双契约分流解决输入路径，剩余故障收敛到目录输出 |
 | 46 | `87A512C2` | F45 + 仅启用现有 `Directory::Read` UTF-8 输出 Hook；仍不启用三个输入 sanitize NOP | ✅ 三项全部 PASS：direct read/write、`/ROM` 枚举 CJK 目录、CJK 目录枚举文件均成功；FAT32 双契约方案验证完成 |
-| 47 | `B4DFC778` | 生产源码清理：删除 `split_path_ascii_prefix_probe` 等 F1–F45 诊断函数、条件编译开关和错误标签；最终 Hook 组合不变，额外指令仅作为只读 `identity_checks` | 🧪 干净编译通过，未压缩 KIP 9972 字节；因二进制已变化，等待 FAT32 实机回归确认 |
+| 47 | `B4DFC778` | 生产源码清理：删除 `split_path_ascii_prefix_probe` 等 F1–F45 诊断函数、条件编译开关和错误标签；最终 Hook 组合不变，额外指令仅作为只读 `identity_checks` | ✅ FAT32 实机三项全部 PASS；未压缩 KIP 9972 字节，生产清理版验证完成 |
 
 ## 根因分析
 
@@ -253,8 +253,9 @@
   直接且仅安装 F46 所需的 slot0/slot3、高层完整字符串、FAT32 SFN 和目录输出
   Hook。历史探针只保留在本清单中；原先用于加强 FS 映像识别的指令被重构为只读
   `identity_checks`，不会改写对应位置。干净构建生成 SHA-256 `B4DFC778...`、大小
-  9972 字节。由于源码和二进制布局均已变化，必须通过新的实机测试后才能把 #47
-  标记为 3 PASS，不能直接继承 #46 的实机状态。
+  9972 字节。FAT32 实机回归中 direct read/write、`/ROM` 枚举 CJK 目录、CJK 目录
+  枚举文件三项均 PASS，确认生产源码清理没有改变最终功能；#47 取代 #46 成为当前
+  已验证的正式构建基准。
 
 ### `is_oem_mb_char` 调用约定复核
 
