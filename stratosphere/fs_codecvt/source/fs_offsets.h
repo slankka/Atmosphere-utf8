@@ -28,6 +28,11 @@ enum FsVersion : u32 {
     FsVer_Count         = 6,
 };
 
+struct FsOpcodeCheck {
+    u32 offset;
+    u32 opcode;
+};
+
 /* Complete offsets for one FS version.
  * codecvt[6]: function entry offsets for the 6 PF_CHARCODE slots.
  * sanitize[3]: TBNZ→NOP sites in the ASCII filter.
@@ -58,16 +63,7 @@ struct FsCodecvtOffsets {
     u32 path_in_entry;     /* exact original first instruction */
     u32 pattern_next_char; /* VFiPFPATH_GetNextCharOfPattern */
     u32 pattern_entry;     /* exact original first instruction */
-    u32 path_token_dbcs_branch; /* GetNextTokenOfPath: mode!=1 branch */
-    u32 path_token_dbcs_opcode; /* exact original conditional branch */
-    u32 shortname_oem_call;     /* parseShortName safe full-source slot0 call */
-    u32 shortname_oem_opcodes[2]; /* original LDR function pointer + BLR */
-    u32 mkdir_split_call;       /* VFiPFDIR_p_mkdir call to SplitPath */
-    u32 mkdir_split_opcode;     /* exact original BL */
-    u32 mkdir_parent_result;    /* MOV W21,W0 after GetEntryOfPath */
-    u32 mkdir_parent_result_opcode; /* exact original MOV */
-    u32 mkdir_local_error;      /* shared local validation return-2 site */
-    u32 mkdir_local_error_opcode; /* exact original MOV W21,#2 */
+    FsOpcodeCheck identity_checks[6]; /* additional exact-image guards */
     u32 parse_shortname_entry;  /* VFiPFPATH_parseShortName entry */
     u32 parse_shortname_entry_opcode; /* exact original prologue */
 };

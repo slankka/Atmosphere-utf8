@@ -24,41 +24,6 @@ static Handle self_proc_handle;
 static char inner_heap[INNER_HEAP_SIZE];
 static const FsCodecvtOffsets *fs_offs;
 
-#define NOP_  0xD503201F
-
-/* Validated FAT32 production profile (Flight Test 46).  Keep the individual
- * diagnostic switches available for controlled experiments, while normal
- * builds select the exact same dual-contract behavior through one name. */
-#if defined(FS_CODECVT_FAT32_DUAL_CONTRACT)
-    #ifndef FS_CODECVT_FAT32_HIGH_LEVEL
-        #define FS_CODECVT_FAT32_HIGH_LEVEL
-    #endif
-    #ifndef FS_CODECVT_FAT32_HIGH_LEVEL_DIR
-        #define FS_CODECVT_FAT32_HIGH_LEVEL_DIR
-    #endif
-    #ifndef FS_CODECVT_OEM2U_GLOBAL_DBCS_SAFE
-        #define FS_CODECVT_OEM2U_GLOBAL_DBCS_SAFE
-    #endif
-    #ifndef FS_CODECVT_DIAG_INCLUDE_AUX
-        #define FS_CODECVT_DIAG_INCLUDE_AUX
-    #endif
-    #ifndef FS_CODECVT_DIAG_HOOK_MASK
-        #define FS_CODECVT_DIAG_HOOK_MASK 9
-    #endif
-#endif
-
-#if defined(FS_CODECVT_DIAG_HOOK_MASK)
-static constexpr u32 CodecvtHookMask = FS_CODECVT_DIAG_HOOK_MASK;
-#elif defined(FS_CODECVT_FAT32_HIGH_LEVEL)
-static constexpr u32 CodecvtHookMask = 0;
-#else
-static constexpr u32 CodecvtHookMask = 0x3F;
-#endif
-
-static constexpr bool codecvt_hook_enabled(int slot) {
-    return (CodecvtHookMask & (1u << slot)) != 0;
-}
-
 extern "C" void __initheap(void) {
     extern char *fake_heap_start, *fake_heap_end;
     fake_heap_start = inner_heap;
@@ -87,7 +52,6 @@ static bool encode_b_cond(uintptr_t source, uintptr_t target, u32 condition, u32
 }
 
 static void w32(uintptr_t a, u32 v) { *(u32*)(fs_rw_mapping+(a-fs_code_base)) = v; }
-static void nop(uintptr_t s) { w32(s, NOP_); }
 
 static void recv_thread(void *arg) {
     Handle h = *(Handle*)arg;
@@ -128,68 +92,45 @@ static bool map_fs(void) {
 static void unmap(void){if(fs_rw_mapping){svcUnmapProcessMemory(fs_rw_mapping,self_proc_handle,fs_code_base,fs_code_size);fs_rw_mapping=0;}}
 
 static bool matches_fs(uintptr_t base, uintptr_t region_end, const FsCodecvtOffsets *o) {
+    if (!o->codecvt[0] || !o->codecvt[3] ||
+        !o->path_from_unicode || !o->path_in_unicode ||
+        !o->pattern_next_char || !o->parse_shortname_entry ||
+        !o->dir_hook || !o->dir_reject || !o->dir_ascii_checks ||
+        !o->dir_scan_continue || !o->cave || !o->cave_size) {
+        return false;
+    }
     u32 max_offset = o->codecvt[5] + sizeof(u32);
     for (int i = 0; i < 3; ++i) {
         if (o->sanitize[i] + sizeof(u32) > max_offset) max_offset = o->sanitize[i] + sizeof(u32);
     }
     if (o->dir_hook && o->dir_hook + sizeof(u32) > max_offset) max_offset = o->dir_hook + sizeof(u32);
     if (o->dir_hook && o->cave + o->cave_size > max_offset) max_offset = o->cave + o->cave_size;
-#if !defined(FS_CODECVT_DIAG_LEGACY_MATCH)
     if (o->path_from_unicode && o->path_from_unicode + sizeof(u32) > max_offset) max_offset = o->path_from_unicode + sizeof(u32);
     if (o->path_in_unicode && o->path_in_unicode + sizeof(u32) > max_offset) max_offset = o->path_in_unicode + sizeof(u32);
     if (o->pattern_next_char && o->pattern_next_char + sizeof(u32) > max_offset) max_offset = o->pattern_next_char + sizeof(u32);
-    if (o->path_token_dbcs_branch && o->path_token_dbcs_branch + sizeof(u32) > max_offset) max_offset = o->path_token_dbcs_branch + sizeof(u32);
-    if (o->shortname_oem_call && o->shortname_oem_call + 2 * sizeof(u32) > max_offset) max_offset = o->shortname_oem_call + 2 * sizeof(u32);
-    if (o->mkdir_split_call && o->mkdir_split_call + sizeof(u32) > max_offset) max_offset = o->mkdir_split_call + sizeof(u32);
-    if (o->mkdir_parent_result && o->mkdir_parent_result + sizeof(u32) > max_offset) max_offset = o->mkdir_parent_result + sizeof(u32);
-    if (o->mkdir_local_error && o->mkdir_local_error + sizeof(u32) > max_offset) max_offset = o->mkdir_local_error + sizeof(u32);
+    for (const auto &check : o->identity_checks) {
+        if (check.offset && check.offset + sizeof(u32) > max_offset) {
+            max_offset = check.offset + sizeof(u32);
+        }
+    }
     if (o->parse_shortname_entry && o->parse_shortname_entry + sizeof(u32) > max_offset) max_offset = o->parse_shortname_entry + sizeof(u32);
-#endif
     const uintptr_t last = base + max_offset;
     if (last < base || last > region_end) return false;
     const volatile u32 *entry = reinterpret_cast<const volatile u32 *>(base + o->codecvt[0]);
     if (entry[0] != o->codecvt_entry[0] || entry[1] != o->codecvt_entry[1]) return false;
     if (o->dir_hook && *reinterpret_cast<const volatile u32 *>(base + o->dir_hook) != o->dir_hook_opcode) return false;
-#if defined(FS_CODECVT_DIAG_MATCH_STAGE)
-    u32 stage = 0;
-    if (o->path_from_unicode &&
-        *reinterpret_cast<const volatile u32 *>(base + o->path_from_unicode) != o->path_from_entry) stage = 1;
-    else if (o->path_in_unicode &&
-             *reinterpret_cast<const volatile u32 *>(base + o->path_in_unicode) != o->path_in_entry) stage = 2;
-    else if (o->pattern_next_char &&
-             *reinterpret_cast<const volatile u32 *>(base + o->pattern_next_char) != o->pattern_entry) stage = 3;
-    else if (o->path_token_dbcs_branch &&
-             *reinterpret_cast<const volatile u32 *>(base + o->path_token_dbcs_branch) != o->path_token_dbcs_opcode) stage = 4;
-    else if (o->shortname_oem_call) {
-        const volatile u32 *call = reinterpret_cast<const volatile u32 *>(base + o->shortname_oem_call);
-        if (call[0] != o->shortname_oem_opcodes[0]) stage = 5;
-        else if (call[1] != o->shortname_oem_opcodes[1]) stage = 6;
-    }
-    if (stage == 0 && o->mkdir_split_call &&
-        *reinterpret_cast<const volatile u32 *>(base + o->mkdir_split_call) != o->mkdir_split_opcode) stage = 7;
-    if (stage == 0 && o->mkdir_parent_result &&
-        *reinterpret_cast<const volatile u32 *>(base + o->mkdir_parent_result) != o->mkdir_parent_result_opcode) stage = 8;
-    if (stage == 0 && o->mkdir_local_error &&
-        *reinterpret_cast<const volatile u32 *>(base + o->mkdir_local_error) != o->mkdir_local_error_opcode) stage = 9;
-    if (stage == 0 && o->parse_shortname_entry &&
-        *reinterpret_cast<const volatile u32 *>(base + o->parse_shortname_entry) != o->parse_shortname_entry_opcode) stage = 10;
-    set_fs_match_failure_stage(stage);
-#elif !defined(FS_CODECVT_DIAG_LEGACY_MATCH)
     if (o->path_from_unicode && *reinterpret_cast<const volatile u32 *>(base + o->path_from_unicode) != o->path_from_entry) return false;
     if (o->path_in_unicode && *reinterpret_cast<const volatile u32 *>(base + o->path_in_unicode) != o->path_in_entry) return false;
     if (o->pattern_next_char && *reinterpret_cast<const volatile u32 *>(base + o->pattern_next_char) != o->pattern_entry) return false;
-    if (o->path_token_dbcs_branch && *reinterpret_cast<const volatile u32 *>(base + o->path_token_dbcs_branch) != o->path_token_dbcs_opcode) return false;
-    if (o->shortname_oem_call) {
-        const volatile u32 *call = reinterpret_cast<const volatile u32 *>(base + o->shortname_oem_call);
-        if (call[0] != o->shortname_oem_opcodes[0] || call[1] != o->shortname_oem_opcodes[1]) return false;
+    for (const auto &check : o->identity_checks) {
+        if (check.offset &&
+            *reinterpret_cast<const volatile u32 *>(base + check.offset) != check.opcode) {
+            return false;
+        }
     }
-    if (o->mkdir_split_call && *reinterpret_cast<const volatile u32 *>(base + o->mkdir_split_call) != o->mkdir_split_opcode) return false;
-    if (o->mkdir_parent_result && *reinterpret_cast<const volatile u32 *>(base + o->mkdir_parent_result) != o->mkdir_parent_result_opcode) return false;
-    if (o->mkdir_local_error && *reinterpret_cast<const volatile u32 *>(base + o->mkdir_local_error) != o->mkdir_local_error_opcode) return false;
     if (o->parse_shortname_entry && *reinterpret_cast<const volatile u32 *>(base + o->parse_shortname_entry) != o->parse_shortname_entry_opcode) return false;
-#endif
     for (int i = 0; i < 3; ++i) {
-        if (o->sanitize[i] == 0) continue;  /* sentinel: no sanitize for this version */
+        if (o->sanitize[i] == 0) continue;
         const u32 op = *reinterpret_cast<const volatile u32 *>(base + o->sanitize[i]);
         if ((op & 0x7F000000) != 0x37000000) return false;
     }
@@ -219,27 +160,27 @@ static s32 find_fs(uintptr_t region_end) {
 }
 
 static bool install(void) {
-    const FsCodecvtOffsets*o=fs_offs;
-#if defined(FS_CODECVT_OEM2U_GLOBAL_DBCS_SAFE)
-    const uintptr_t oem2unicode_target =
-        reinterpret_cast<uintptr_t>(&oem2unicode_dbcs_safe);
-#else
-    const uintptr_t oem2unicode_target =
-        reinterpret_cast<uintptr_t>(&oem2unicode_utf8);
-#endif
-    const uintptr_t codecvt_targets[6] = {
-        oem2unicode_target, (uintptr_t)&unicode2oem_utf8,
-        (uintptr_t)&oem_char_width_utf8, (uintptr_t)&is_oem_mb_utf8,
-        (uintptr_t)&unicode_char_width_utf8, (uintptr_t)&is_unicode_mb_utf8,
-    };
-    u32 codecvt_hooks[6] = {};
-    for (int i = 0; i < 6; ++i) {
-        if (o->codecvt[i] == 0 || !codecvt_hook_enabled(i)) continue;
-        if (!encode_b(fs_code_base + o->codecvt[i], codecvt_targets[i], &codecvt_hooks[i])) return false;
+    const FsCodecvtOffsets *o = fs_offs;
+    if (!o->codecvt[0] || !o->codecvt[3] ||
+        !o->path_from_unicode || !o->path_in_unicode ||
+        !o->pattern_next_char || !o->parse_shortname_entry ||
+        !o->dir_hook || !o->dir_reject || !o->dir_ascii_checks ||
+        !o->dir_scan_continue || !o->cave || !o->cave_size) {
+        return false;
     }
 
-#if defined(FS_CODECVT_DIAG_PATH_TRANSFORMS) || defined(FS_CODECVT_FAT32_HIGH_LEVEL)
-    if (!o->path_from_unicode || !o->path_in_unicode || !o->pattern_next_char) return false;
+    /* The legacy PF_CHARCODE path may provide only a two-byte temporary.
+     * Hook only OEM->Unicode and byte classification at this layer. */
+    u32 oem2unicode_hook, is_oem_mb_hook;
+    if (!encode_b(fs_code_base + o->codecvt[0],
+                  reinterpret_cast<uintptr_t>(&oem2unicode_dbcs_safe),
+                  &oem2unicode_hook)) return false;
+    if (!encode_b(fs_code_base + o->codecvt[3],
+                  reinterpret_cast<uintptr_t>(&is_oem_mb_utf8),
+                  &is_oem_mb_hook)) return false;
+
+    /* These entry points receive complete strings and can safely perform
+     * full UTF-8 conversion. */
     u32 path_from_hook, path_in_hook, pattern_next_hook;
     if (!encode_b(fs_code_base + o->path_from_unicode,
                   reinterpret_cast<uintptr_t>(&transform_from_unicode_to_normal_utf8),
@@ -250,65 +191,17 @@ static bool install(void) {
     if (!encode_b(fs_code_base + o->pattern_next_char,
                   reinterpret_cast<uintptr_t>(&get_next_char_of_pattern_utf8),
                   &pattern_next_hook)) return false;
-#endif
 
-#if defined(FS_CODECVT_FAT32_HIGH_LEVEL)
-    if (!o->parse_shortname_entry) return false;
     u32 parse_shortname_hook;
     if (!encode_b(fs_code_base + o->parse_shortname_entry,
                   reinterpret_cast<uintptr_t>(&parse_short_name_utf8_fat),
                   &parse_shortname_hook)) return false;
-#endif
 
-#if defined(FS_CODECVT_DIAG_PATH_TOKEN_BYTES)
-    if (!o->path_token_dbcs_branch) return false;
-#endif
-
-#if defined(FS_CODECVT_DIAG_SHORTNAME_OEM_CALL)
-    if (!o->shortname_oem_call) return false;
-    u32 shortname_oem_hook;
-    if (!encode_b(fs_code_base + o->shortname_oem_call,
-                  reinterpret_cast<uintptr_t>(&oem2unicode_utf8),
-                  &shortname_oem_hook, true)) return false;
-#endif
-
-#if defined(FS_CODECVT_DIAG_MKDIR_SPLIT_PATH)
-    if (!o->mkdir_split_call) return false;
-    u32 mkdir_split_hook;
-    if (!encode_b(fs_code_base + o->mkdir_split_call,
-                  reinterpret_cast<uintptr_t>(&split_path_utf8_mkdir),
-                  &mkdir_split_hook, true)) return false;
-#endif
-
-#if defined(FS_CODECVT_DIAG_MKDIR_ASCII_PROBE)
-    if (!o->mkdir_split_call) return false;
-    set_original_split_path(reinterpret_cast<void*>(fs_code_base + 0xF9B00));
-    u32 mkdir_ascii_probe_hook;
-    if (!encode_b(fs_code_base + o->mkdir_split_call,
-                  reinterpret_cast<uintptr_t>(&split_path_ascii_probe),
-                  &mkdir_ascii_probe_hook, true)) return false;
-#endif
-
-#if defined(FS_CODECVT_DIAG_MKDIR_ASCII_PREFIX_PROBE)
-    if (!o->mkdir_split_call) return false;
-    set_original_split_path(reinterpret_cast<void*>(fs_code_base + 0xF9B00));
-    u32 mkdir_ascii_prefix_probe_hook;
-    if (!encode_b(fs_code_base + o->mkdir_split_call,
-                  reinterpret_cast<uintptr_t>(&split_path_ascii_prefix_probe),
-                  &mkdir_ascii_prefix_probe_hook, true)) return false;
-#endif
-
-    /* Directory hook is optional — versions with dir_hook==0 skip it entirely.
-     * When enabled, the hook is in the middle of Directory::Read, not at an ABI
+    /* The hook is in the middle of Directory::Read, not at an ABI
      * function boundary. Preserve every live caller-saved register except X8,
      * which deliberately receives the validated next scan index. The C++
      * validator returns DirResult in X0/X1 according to AAPCS64. */
-#if !defined(FS_CODECVT_DIAG_SANITIZE_ONLY) && \
-    !defined(FS_CODECVT_DIAG_CODECVT_ONLY) && \
-    (!defined(FS_CODECVT_DIAG_HOOK_MASK) || defined(FS_CODECVT_DIAG_INCLUDE_AUX)) && \
-    (!defined(FS_CODECVT_FAT32_HIGH_LEVEL) || \
-     defined(FS_CODECVT_FAT32_HIGH_LEVEL_DIR))
-    if (o->dir_hook) {
+    {
         const uintptr_t cb=fs_code_base+o->cave,vf=(uintptr_t)&utf8_dir_validate_cpp;
         u32 t[48];int ti=0;
         auto emit = [&](u32 op) { t[ti++] = op; };
@@ -345,60 +238,13 @@ static bool install(void) {
         for(int i=0;i<ti;i++)w32(cb+i*4,t[i]);
         w32(fs_code_base + o->dir_hook, dir_hook);
     }
-#endif
 
-    /* Commit codecvt hooks. */
-    for (int i = 0; i < 6; ++i) {
-        if (o->codecvt[i] && codecvt_hook_enabled(i)) w32(fs_code_base + o->codecvt[i], codecvt_hooks[i]);
-    }
-#if defined(FS_CODECVT_DIAG_PATH_TRANSFORMS) || defined(FS_CODECVT_FAT32_HIGH_LEVEL)
+    w32(fs_code_base + o->codecvt[0], oem2unicode_hook);
+    w32(fs_code_base + o->codecvt[3], is_oem_mb_hook);
     w32(fs_code_base + o->path_from_unicode, path_from_hook);
     w32(fs_code_base + o->path_in_unicode, path_in_hook);
     w32(fs_code_base + o->pattern_next_char, pattern_next_hook);
-#endif
-#if defined(FS_CODECVT_FAT32_HIGH_LEVEL)
     w32(fs_code_base + o->parse_shortname_entry, parse_shortname_hook);
-#endif
-#if defined(FS_CODECVT_DIAG_PATH_TOKEN_BYTES)
-    /* PrFILE2's OEM path tokenizer assumes every multibyte character is a
-     * two-byte DBCS pair.  UTF-8 cannot satisfy that contract.  Route mode-1
-     * strings through its ordinary byte path instead; that path already
-     * accepts every byte >= 0x80 and advances exactly one byte per loop. */
-    w32(fs_code_base + o->path_token_dbcs_branch, 0x14000013); /* b 0xF9984 */
-#endif
-#if defined(FS_CODECVT_DIAG_SHORTNAME_OEM_CALL)
-    /* parseShortName passes a pointer into the complete filename here, so the
-     * UTF-8 decoder may safely inspect a third byte.  Keep the global slot0
-     * untouched because other callers provide only two-byte temporaries. */
-    w32(fs_code_base + o->shortname_oem_call, shortname_oem_hook);
-    nop(fs_code_base + o->shortname_oem_call + sizeof(u32));
-#endif
-#if defined(FS_CODECVT_DIAG_MKDIR_SPLIT_PATH)
-    w32(fs_code_base + o->mkdir_split_call, mkdir_split_hook);
-#endif
-#if defined(FS_CODECVT_DIAG_MKDIR_ASCII_PROBE)
-    w32(fs_code_base + o->mkdir_split_call, mkdir_ascii_probe_hook);
-#endif
-#if defined(FS_CODECVT_DIAG_MKDIR_ASCII_PREFIX_PROBE)
-    w32(fs_code_base + o->mkdir_split_call, mkdir_ascii_prefix_probe_hook);
-#endif
-#if defined(FS_CODECVT_DIAG_MKDIR_PARENT_RESULT)
-    if (!o->mkdir_parent_result) return false;
-    /* Tag only the value returned when GetEntryOfPath fails.  Its following
-     * CBNZ still tests W0, while the mkdir epilogue returns tagged W21. */
-    w32(fs_code_base + o->mkdir_parent_result, 0x11040015); /* add w21,w0,#0x100 */
-#endif
-#if defined(FS_CODECVT_DIAG_MKDIR_LOCAL_ERROR)
-    if (!o->mkdir_local_error) return false;
-    w32(fs_code_base + o->mkdir_local_error, 0x52800075); /* mov w21,#3 */
-#endif
-#if !defined(FS_CODECVT_FAT32_HIGH_LEVEL) && \
-    !defined(FS_CODECVT_DIAG_CODECVT_ONLY) && \
-    (!defined(FS_CODECVT_DIAG_HOOK_MASK) || defined(FS_CODECVT_DIAG_INCLUDE_AUX))
-    /* The diagnostic codecvt-only build leaves the independent filename
-     * filter changes untouched so the two hook groups can be isolated. */
-    for (int i = 0; i < 3; ++i) { if (o->sanitize[i]) nop(fs_code_base + o->sanitize[i]); }
-#endif
     return true;
 }
 
@@ -417,11 +263,6 @@ extern "C" void __init(void) {
     if (region_end < mi.addr || following_module < mi.addr || following_module >= region_end) return;
     const s32 vi = find_fs(region_end);
     if(vi<0)return;
-#if defined(FS_CODECVT_DIAG_VERSION_ID)
-    /* Expose the table entry selected by find_fs() through the OEM decoder:
-     * A=entry 0, B=entry 1, ... . */
-    set_fs_match_failure_stage(static_cast<u32>(vi));
-#endif
     if(!get_ph())return;
     if(!map_fs())return;
     fs_offs=&g_fs_codecvt_offsets[vi];
