@@ -27,6 +27,8 @@ const u8 g_fs_hashes[FsVer_Count][8] = {
     { 0xFB, 0x0B, 0x68, 0xDB, 0x24, 0x03, 0xD1, 0x19 },
     /* FsVer_22_5_0_Exfat */
     { 0xD4, 0x45, 0x28, 0x29, 0x5B, 0x41, 0x92, 0xBA },
+    /* FsVer_19_0_0_Fat32 — compatible with 19.0.1 FAT32 */
+    { 0xD9, 0x4C, 0x68, 0x15, 0xF8, 0xF5, 0x0A, 0x20 },
 };
 
 /*
@@ -51,6 +53,16 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0xFEC30 + UNI2OEM_CODE_SIZE,  /* cave */
         0xFEE00 - (0xFEC30 + UNI2OEM_CODE_SIZE), /* cave_size */
         { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
+        /* High-level UTF-8/FAT32 path hooks, instruction-aligned against the
+         * 19.0.1 ExFAT-capable FS image (FS_proper.nso SHA256 04CC7A78...). */
+        0xF5840, 0xF5960, 0xD10143FF, 0xA9BC7BFD,
+        0xF44E0, 0xD10103FF,
+        0xF4D68, 0x54000261,
+        0xF5EE0, { 0xF9400F48, 0xD63F0100 },
+        0x108510, 0x97FFB288,
+        0x1085A8, 0x2A0003F5,
+        0x1086BC, 0x52800055,
+        0xF5AC0, 0xA9BA7BFD,
     },
     /* FsVer_20_2_0_Exfat */
     {
@@ -61,6 +73,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x1095B0 + UNI2OEM_CODE_SIZE,
         0x109780 - (0x1095B0 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
     },
     /* FsVer_21_2_0_Exfat — full codecvt + dir hook (capstone-verified).
      * Dir hook at 0xE48D0 (b.lo→0xE4864), byte in W10 (ldrb w10,[x28,x8]).
@@ -73,6 +86,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x10EE10 + UNI2OEM_CODE_SIZE,
         0x10EFE0 - (0x10EE10 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54FFFCA3,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
     },
     /* FsVer_22_0_0_Exfat */
     {
@@ -83,6 +97,7 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
     },
     /* FsVer_22_5_0_Exfat — identical to 22.0.0 */
     {
@@ -93,5 +108,30 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
         0x111670 + UNI2OEM_CODE_SIZE,
         0x111840 - (0x111670 + UNI2OEM_CODE_SIZE),
         { 0x39C00008, 0x12001D0B }, 0x54000409,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, { 0, 0 }, 0, 0, 0, 0, 0, 0, 0, 0,
+    },
+    /* FsVer_19_0_0_Fat32 — offsets from nx-filesystem-utf8 build_patches22.py.
+     * Verified against 19.0.1 FAT32 FS_proper.nso (SHA256 0643F662...).
+     * Dir hook at 0xD4A94 (b.lo→0xD4A30), byte in W9 (ldrb w9,[x25,x8]).
+     * Register usage matches 19.x/20.x exFAT: X25/X19/W9.
+     * FAT32 has no NOP regions → cave placed in dead uni2oem code
+     * (uni2oem entry replaced with B → rest of function is unreachable).
+     * Cave at 0xECF44 matches patches.ini verified location. */
+    {
+        { 0xECD20, 0xECE90, 0xED060, 0xED0A0, 0xED0F0, 0xED100 },
+        { 0xFA458, 0xFA658, 0xFB148 },
+        0xD4A94, 0xD4A30, 0xD4A98, 0xD4AC0,
+        25, 19, 9, 0,
+        0xECF44,  /* cave = patches.ini verified, inside dead uni2oem */
+        0xED060 - 0xECF44,  /* cave_size = 0x11C (284 bytes, trampoline=140B) */
+        { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
+        0xFA410, 0xFA530, 0xD10143FF, 0xA9BC7BFD,
+        0xF9190, 0xD10103FF,
+        0xF9938, 0x54000261,
+        0xFA9F0, { 0xF9400F48, 0xD63F0100 },
+        0xF5D5C, 0x94000F69,
+        0xF5DF4, 0x2A0003F5,
+        0xF5EB0, 0x52800055,
+        0xFA5D0, 0xA9BA7BFD,
     },
 };
