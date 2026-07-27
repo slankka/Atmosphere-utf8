@@ -46,6 +46,12 @@ Program ID 为 `0100000000000000` 的自定义 KIP。`emummc=0` 只表示进入�
 | 22.5.0 exFAT | ✅ | ✅ | **3 PASS** |
 
 
+**3 PASS** meaning:
+
+1. file direct read/write round-trip!
+2. lists CJK dir
+3. CJK dir lists file
+
 ## 构建与部署
 
 `make` 同时生成压缩中间产物 `fs_codecvt.kip` 和用于 fusee overlay 注入的
