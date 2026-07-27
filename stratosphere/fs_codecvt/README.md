@@ -1,5 +1,10 @@
 # fs_codecvt — UTF-8 Codecvt KIP for Atmosphere
 
+This directory contains the FAT32 profile. The integrated branch also builds the
+legacy ExFAT profile from `stratosphere/fs_codecvt_exfat`. Fusee accepts exactly
+one FS overlay, so only one profile may be copied to
+`sdmc:/atmosphere/fs_overlays/fs_codecvt_unpacked.kip` at a time.
+
 ## 架构
 
 fs_codecvt 是一个 ARM64 KIP 格式的 FS Overlay 模块，在运行时对 Nintendo FS
