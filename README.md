@@ -16,10 +16,8 @@ This repo provides a KIP overlay that enables UTF-8 filenames on the Nintendo Sw
 FS process overlays use the dedicated `sdmc:/atmosphere/fs_overlays/` directory.
 The traditional `sdmc:/atmosphere/kips/` directory remains reserved for standalone
 initial-process KIPs. The release archive includes `fs_codecvt_unpacked.kip` in the
-dedicated overlay directory. The default overlay is the FAT32 implementation.
-Both selectable implementations are also included under
-`sdmc:/atmosphere/fs_overlay_profiles/{fat32,exfat}/`; copy exactly one profile's
-`fs_codecvt_unpacked.kip` into `sdmc:/atmosphere/fs_overlays/` before booting.
+dedicated overlay directory. It is a single conservative dual-contract build for
+both FAT32 and ExFAT media; no profile selection or KIP replacement is required.
 
 Components
 =====

@@ -1,4 +1,4 @@
-# Flight Test Manifest — 19.0.1 FAT32
+# Flight Test Manifest — FAT32/ExFAT unified overlay
 
 | # | SHA256(前8) | 变更 | 结果 |
 |---|-------------|------|------|
@@ -50,6 +50,7 @@
 | 46 | `87A512C2` | F45 + 仅启用现有 `Directory::Read` UTF-8 输出 Hook；仍不启用三个输入 sanitize NOP | ✅ 三项全部 PASS：direct read/write、`/ROM` 枚举 CJK 目录、CJK 目录枚举文件均成功；FAT32 双契约方案验证完成 |
 | 47 | `B4DFC778` | 生产源码清理：删除 `split_path_ascii_prefix_probe` 等 F1–F45 诊断函数、条件编译开关和错误标签；最终 Hook 组合不变，额外指令仅作为只读 `identity_checks` | ✅ FAT32 实机三项全部 PASS；未压缩 KIP 9972 字节，生产清理版验证完成 |
 | 48 | `B20FFE7A` | 将 F47 FAT32 双契约推广到 20.2.0、21.2.0、22.0.0、22.5.0 ExFAT-capable FS；补齐高层转换、pattern、SFN 与版本专属 identity checks | 🧪 五版本提取实体唯一匹配及干净编译通过；19.0.1 行为待回归，20.2.0–22.5.0 FAT32 实机待测试 |
+| 49 | `C6954E1D` | 收敛为单一 FAT32/ExFAT KIP：完整字符串 Hook 为两种介质提供无损 UTF-8，旧 PF_CHARCODE slot0/3 保留 FAT32 两字节安全契约，FAT SFN Hook 在 ExFAT 路径不执行；删除第二 KIP 构建 | 🧪 干净编译通过，统一标识已进入 10004 字节 KIP；FAT32 行为与 F48 相同，ExFAT 实机回归待测试 |
 
 ## 根因分析
 

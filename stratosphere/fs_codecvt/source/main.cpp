@@ -24,6 +24,11 @@ static Handle self_proc_handle;
 static char inner_heap[INNER_HEAP_SIZE];
 static const FsCodecvtOffsets *fs_offs;
 
+/* Kept in the final KIP so field-test artifacts can be distinguished from the
+ * earlier FAT32-only and six-slot ExFAT builds. */
+extern "C" __attribute__((used)) const char g_fs_codecvt_profile[] =
+    "fs_codecvt-unified-fat32-exfat-v1";
+
 extern "C" void __initheap(void) {
     extern char *fake_heap_start, *fake_heap_end;
     fake_heap_start = inner_heap;
@@ -169,8 +174,10 @@ static bool install(void) {
         return false;
     }
 
-    /* The legacy PF_CHARCODE path may provide only a two-byte temporary.
-     * Hook only OEM->Unicode and byte classification at this layer. */
+    /* Unified FAT32/ExFAT strategy: never install the legacy ExFAT build's
+     * global six-slot replacement. FAT paths can pass a two-byte DBCS
+     * temporary here, so only the bounded decoder and byte classifier are
+     * safe at this layer. */
     u32 oem2unicode_hook, is_oem_mb_hook;
     if (!encode_b(fs_code_base + o->codecvt[0],
                   reinterpret_cast<uintptr_t>(&oem2unicode_dbcs_safe),
@@ -179,8 +186,9 @@ static bool install(void) {
                   reinterpret_cast<uintptr_t>(&is_oem_mb_utf8),
                   &is_oem_mb_hook)) return false;
 
-    /* These entry points receive complete strings and can safely perform
-     * full UTF-8 conversion. */
+    /* These entry points receive complete strings. They provide the lossless
+     * UTF-8 conversion used by both media paths and replace the work formerly
+     * done by the unsafe global ExFAT slot0/slot1 hooks. */
     u32 path_from_hook, path_in_hook, pattern_next_hook;
     if (!encode_b(fs_code_base + o->path_from_unicode,
                   reinterpret_cast<uintptr_t>(&transform_from_unicode_to_normal_utf8),
@@ -192,6 +200,8 @@ static bool install(void) {
                   reinterpret_cast<uintptr_t>(&get_next_char_of_pattern_utf8),
                   &pattern_next_hook)) return false;
 
+    /* ExFAT does not need an 8.3 alias; this entry is exercised by the FAT
+     * path and is harmlessly dormant for ExFAT volumes. */
     u32 parse_shortname_hook;
     if (!encode_b(fs_code_base + o->parse_shortname_entry,
                   reinterpret_cast<uintptr_t>(&parse_short_name_utf8_fat),
@@ -250,6 +260,7 @@ static bool install(void) {
 
 extern "C" void __init(void) {
     __libc_init_array();
+    asm volatile("" : : "r"(g_fs_codecvt_profile) : "memory");
     MemoryInfo mi; u32 pi;
     /* startup has already split this overlay's own text/rodata/data permissions,
      * so querying &_start only describes the first overlay subregion. Query the

@@ -1,9 +1,17 @@
 # fs_codecvt — UTF-8 Codecvt KIP for Atmosphere
 
-This directory contains the FAT32 profile. The integrated branch also builds the
-legacy ExFAT profile from `stratosphere/fs_codecvt_exfat`. Fusee accepts exactly
-one FS overlay, so only one profile may be copied to
-`sdmc:/atmosphere/fs_overlays/fs_codecvt_unpacked.kip` at a time.
+This directory builds one unified FAT32/ExFAT overlay. It replaces the previous
+two-profile packaging model: deploy only
+`sdmc:/atmosphere/fs_overlays/fs_codecvt_unpacked.kip`, without selecting a
+media-specific KIP.
+
+The unified build deliberately uses the conservative dual-contract design for
+both media types. Complete-string path hooks perform lossless UTF-8 conversion;
+the legacy `PF_CHARCODE` layer uses a bounded two-byte decoder so FAT32 cannot
+read past its temporary DBCS buffer. The FAT 8.3 alias hook is only reached by
+the FAT path, while ExFAT continues through the shared long-name path. This
+avoids an unreliable boot-time media guess and the FAT32 black screen caused by
+the old global six-slot ExFAT replacement.
 
 ## 架构
 
@@ -51,20 +59,19 @@ fs_codecvt。
 
 ### 实机验证状态
 
-截至 2026-07-26，表中的介质均指 **FAT32 SD 卡**；FS 变体指 Daybreak
+截至 2026-07-27，表中的介质均指 **FAT32 SD 卡**；FS 变体指 Daybreak
 选择 `FAT32 + exFAT` 后实际加载的 ExFAT-capable FS：
 
-| HOS/FS 变体 | FAT32 双契约偏移 | 静态唯一匹配 | FAT32 实机三项验证 |
+| HOS/FS 变体 | 统一偏移 | FAT32 实机验证 | ExFAT 统一 KIP 回归 |
 |---|---:|---:|---:|
-| 19.0.0 ExFAT-capable | ✅ | ✅ | **3 PASS**（19.0.1，Flight #47） |
-| 20.2.0 ExFAT-capable | ✅ | ✅ | 待测试 |
-| 21.2.0 ExFAT-capable | ✅ | ✅ | 待测试 |
-| 22.0.0 ExFAT-capable | ✅ | ✅ | 待测试 |
-| 22.5.0 ExFAT-capable | ✅ | ✅ | 待测试 |
+| 19.0.0 ExFAT-capable | ✅ | **3 PASS**（19.0.1，Flight #47） | 待测试 |
+| 20.2.0 ExFAT-capable | ✅ | **3 PASS** | 待测试 |
+| 21.2.0 ExFAT-capable | ✅ | **3 PASS** | 待测试 |
+| 22.0.0 ExFAT-capable | ✅ | **3 PASS** | 待测试 |
+| 22.5.0 ExFAT-capable | ✅ | **3 PASS** | 待测试 |
 
-原始 exFAT 介质方案在部分版本上的 3 PASS 不能代替当前 FAT32 双契约 KIP 的
-实机验证。基于 Atmosphère 1.9.2 的整套系统也不能直接启动 HOS 20–22；测试外置
-KIP 时必须搭配支持目标 HOS 的 Atmosphère/Fusee。
+旧 ExFAT 六槽 KIP 的历史 3 PASS 不能代替这个统一 KIP 的 ExFAT 回归测试。
+上表 FAT32 已全部通过；ExFAT 列必须在实机上重新执行三项验证后才能标记 PASS。
 
 ## 实现细节
 
