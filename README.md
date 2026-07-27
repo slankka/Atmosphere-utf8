@@ -19,6 +19,10 @@ initial-process KIPs. The release archive includes `fs_codecvt_unpacked.kip` in 
 dedicated overlay directory. It is a single conservative dual-contract build for
 both FAT32 and ExFAT media; no profile selection or KIP replacement is required.
 
+An "overlay" does NOT replace the original FS.kip1. Instead, it is injected INTO the FS process address space at boot, hooks specific functions, then chains to the real FS code.
+
+See details about the "KIP" [fs_codecvt](stratosphere/fs_codecvt/README.md)
+
 Components
 =====
 

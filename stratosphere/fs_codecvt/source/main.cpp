@@ -174,7 +174,7 @@ static bool install(void) {
         return false;
     }
 
-    /* Unified FAT32/ExFAT strategy: never install the legacy ExFAT build's
+    /* Unified FAT32/ExFAT strategy: never install the legacy (1.0.0/1.2.0) ExFAT build's
      * global six-slot replacement. FAT paths can pass a two-byte DBCS
      * temporary here, so only the bounded decoder and byte classifier are
      * safe at this layer. */

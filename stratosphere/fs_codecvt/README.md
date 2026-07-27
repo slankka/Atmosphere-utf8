@@ -81,7 +81,7 @@ Status as of 2026-07-27:
 
 | HOS / FS binary | Unified offsets | FAT32 media | ExFAT media with unified KIP |
 |---|---:|---:|---:|
-| 19.0.0 ExFAT-capable | Yes | **3 PASS** on 19.0.1 | Pending regression |
+| 19.0.0 ExFAT-capable | Yes | **3 PASS** | Pending regression |
 | 20.2.0 ExFAT-capable | Yes | **3 PASS** | Pending regression |
 | 21.2.0 ExFAT-capable | Yes | **3 PASS** | Pending regression |
 | 22.0.0 ExFAT-capable | Yes | **3 PASS** | Pending regression |
