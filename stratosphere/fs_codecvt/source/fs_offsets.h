@@ -15,17 +15,16 @@
 
 /* FS version enum — matches fusee's FsVersion ordering */
 enum FsVersion : u32 {
-    /* exFAT variants */
+    /* ExFAT-capable FS binaries from FAT32 + exFAT firmware. These offsets
+     * support both FAT32 and ExFAT SD media; the media format does not select
+     * a different FS binary or offset table. */
     FsVer_19_0_0_Exfat  = 0,
     FsVer_20_2_0_Exfat  = 1,
     FsVer_21_2_0_Exfat  = 2,
     FsVer_22_0_0_Exfat  = 3,
     FsVer_22_5_0_Exfat  = 4,
 
-    /* FAT32 variants */
-    FsVer_19_0_0_Fat32  = 5,
-
-    FsVer_Count         = 6,
+    FsVer_Count         = 5,
 };
 
 struct FsOpcodeCheck {

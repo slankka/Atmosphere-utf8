@@ -5,7 +5,9 @@
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
  *
- * Offset tables for each supported FS version (exFAT variants, 19.0.0–22.5.0).
+ * Offset tables for ExFAT-capable FS binaries from FAT32 + exFAT firmware
+ * (19.0.0–22.5.0). The same binary and offsets are used with FAT32 or ExFAT
+ * SD media; FAT-only firmware binaries are intentionally out of scope.
  *
  * Offsets derived from nx-filesystem-utf8 project's build_patches22.py.
  * All values are relative to the decompressed FS .text section. The KIP1
@@ -27,8 +29,6 @@ const u8 g_fs_hashes[FsVer_Count][8] = {
     { 0xFB, 0x0B, 0x68, 0xDB, 0x24, 0x03, 0xD1, 0x19 },
     /* FsVer_22_5_0_Exfat */
     { 0xD4, 0x45, 0x28, 0x29, 0x5B, 0x41, 0x92, 0xBA },
-    /* FsVer_19_0_0_Fat32 — compatible with 19.0.1 FAT32 */
-    { 0xD9, 0x4C, 0x68, 0x15, 0xF8, 0xF5, 0x0A, 0x20 },
 };
 
 /*
@@ -152,32 +152,5 @@ const FsCodecvtOffsets g_fs_codecvt_offsets[FsVer_Count] = {
             { 0xE70C0, 0xD28A9041 },
         },
         0x1089B0, 0xA9BA7BFD,
-    },
-    /* FsVer_19_0_0_Fat32 — offsets from nx-filesystem-utf8 build_patches22.py.
-     * Verified against 19.0.1 FAT32 FS_proper.nso (SHA256 0643F662...).
-     * Dir hook at 0xD4A94 (b.lo→0xD4A30), byte in W9 (ldrb w9,[x25,x8]).
-     * Register usage matches 19.x/20.x exFAT: X25/X19/W9.
-     * FAT32 has no NOP regions → cave placed in dead uni2oem code
-     * (uni2oem entry replaced with B → rest of function is unreachable).
-     * Cave at 0xECF44 matches patches.ini verified location. */
-    {
-        { 0xECD20, 0xECE90, 0xED060, 0xED0A0, 0xED0F0, 0xED100 },
-        { 0xFA458, 0xFA658, 0xFB148 },
-        0xD4A94, 0xD4A30, 0xD4A98, 0xD4AC0,
-        25, 19, 9, 0,
-        0xECF44,  /* cave = patches.ini verified, inside dead uni2oem */
-        0xED060 - 0xECF44,  /* cave_size = 0x11C (284 bytes, trampoline=140B) */
-        { 0x39C00008, 0x12001D0A }, 0x54FFFCE3,
-        0xFA410, 0xFA530, 0xD10143FF, 0xA9BC7BFD,
-        0xF9190, 0xD10103FF,
-        {
-            { 0xF9938, 0x54000261 },
-            { 0xFA9F0, 0xF9400F48 },
-            { 0xFA9F4, 0xD63F0100 },
-            { 0xF5D5C, 0x94000F69 },
-            { 0xF5DF4, 0x2A0003F5 },
-            { 0xF5EB0, 0x52800055 },
-        },
-        0xFA5D0, 0xA9BA7BFD,
     },
 };
