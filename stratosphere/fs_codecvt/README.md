@@ -93,7 +93,7 @@ not replace regression testing of the unified KIP on ExFAT media.
 `3 PASS` means all three checks succeeded:
 
 - Direct file read/write round trip through a CJK path.
-- Enumeration of `/ROM` returns the CJK directory.
+- Enumeration of a normal directory returns the CJK sub-directory.
 - Enumeration of the CJK directory returns the expected file.
 
 ## Implementation details
