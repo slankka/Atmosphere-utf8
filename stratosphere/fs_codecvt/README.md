@@ -63,6 +63,10 @@ SHA-256: C6042EC1C0579E9CFE855751181A866BE490AC8D4632B32A2509BF96C3E5274A
 结果: 系统正常启动，三项验证全部 PASS
 ```
 
+只替换外置 `fs_codecvt_unpacked.kip` 不需要重新编译 package3；修改 Fusee 的
+Overlay 加载或 Package2 重建逻辑后，才需要重新构建 Fusee/package3 并更新
+启动 payload。其余固件版本以及启用 emuMMC 的组合仍需分别实机验证。
+
 ## architecture
 
 ```
@@ -144,7 +148,3 @@ SHA-256: C6042EC1C0579E9CFE855751181A866BE490AC8D4632B32A2509BF96C3E5274A
   EMUMMC       | FS process    | Redirects NAND I/O to SD card image
   Storage      | hardware      | Physical NAND chip or SD card
 ```
-
-只替换外置 `fs_codecvt_unpacked.kip` 不需要重新编译 package3；修改 Fusee 的
-Overlay 加载或 Package2 重建逻辑后，才需要重新构建 Fusee/package3 并更新
-启动 payload。其余固件版本以及启用 emuMMC 的组合仍需分别实机验证。
