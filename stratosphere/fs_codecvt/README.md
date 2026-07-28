@@ -224,21 +224,6 @@ sdmc:/atmosphere/fs_overlays/fs_codecvt_unpacked.kip
 Fusee rejects an overlay whose KIP compression flags or segment layout are not
 valid for overlay injection.
 
-The current unified build, after removing the out-of-scope FAT-only table, is:
-
-```text
-SHA-256: 69346316550F6A41EBB490208FD653F190658474EC858E4A57F0B8345D5E2703
-Size:    9860 bytes
-Marker:  fs_codecvt-unified-fat32-exfat-v1
-```
-
-Historical validation artifacts include:
-
-- Flight #47, the cleaned 19.0.1 FAT32 production baseline:
-  `B4DFC77894852EECCB2BF7244493B3F25A81A8A11719691F1F6F25FD86E2A0F8`.
-- Flight #48, the first five-firmware FAT32 candidate:
-  `B20FFE7A354FB6AD536BD85C61FFAB7BAD8B11279CD9E5E1B2CDC88605D9DBA0`.
-
 Replacing only the external `fs_codecvt_unpacked.kip` does not require
 rebuilding `package3`. Changes to the Fusee overlay loader or Package2 rebuild
 logic require rebuilding Fusee/package3 and updating the boot payload.
