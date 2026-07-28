@@ -23,8 +23,6 @@ An "overlay" does NOT replace the original FS.kip1. Instead, it is injected INTO
 
 See details about the "KIP" [fs_codecvt](stratosphere/fs_codecvt/README.md)
 
-![Image-PassedSign](img/VerifiedAndTestPassedSign.png)
-
 Components
 =====
 
