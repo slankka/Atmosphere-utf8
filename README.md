@@ -11,6 +11,9 @@ Atmosphère is a work-in-progress customized firmware for the Nintendo Switch.
 **UTF-8 KIP fs_codecvt**
 =====
 
+> The in-tree `fs_codecvt` implementation is deprecated in favor of the standalone [`slankka/nx-fs-utf8`](https://github.com/slankka/nx-fs-utf8) repository, where future development and releases will take place.
+
+
 This repo provides a KIP overlay that enables UTF-8 filenames on the Nintendo Switch by replacing the FS sysmodule's built-in codecvt.
 
 FS process overlays use the dedicated `sdmc:/atmosphere/fs_overlays/` directory.
